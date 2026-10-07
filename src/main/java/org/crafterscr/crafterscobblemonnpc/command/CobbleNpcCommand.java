@@ -6,7 +6,6 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -112,11 +111,7 @@ public final class CobbleNpcCommand {
                                                                                                 StringArgumentType.word()
                                                                                         )
                                                                                         .suggests(
-                                                                                                (context, builder) ->
-                                                                                                        SharedSuggestionProvider.suggest(
-                                                                                                                MegaShowdownCompat.getMegaForms(),
-                                                                                                                builder
-                                                                                                        )
+                                                                                                MegaFormSuggestionProvider::suggest
                                                                                         )
                                                                                         .executes(context ->
                                                                                                 createMegaNpc(
