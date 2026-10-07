@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,6 +15,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import org.crafterscr.crafterscobblemonnpc.cobblemon.CobblemonNpcFactory;
+import org.crafterscr.crafterscobblemonnpc.compat.MegaShowdownCompat;
 import org.crafterscr.crafterscobblemonnpc.manager.DecorativeNpcManager;
 import org.crafterscr.crafterscobblemonnpc.util.NpcDataKeys;
 import org.crafterscr.crafterscobblemonnpc.util.NpcMessages;
@@ -78,6 +80,83 @@ public final class CobbleNpcCommand {
                                                                                                 "pokemon"
                                                                                         )
                                                                                 )
+                                                                        )
+                                                        )
+                                        )
+                        )
+
+                        /*
+                         * /cobblenpc mega <id> <pokemon> <form> [shiny]
+                         *
+                         * Mega Showdown es una compatibilidad opcional.
+                         * Este comando no modifica el flujo clásico de create.
+                         */
+                        .then(
+                                Commands.literal("mega")
+                                        .then(
+                                                Commands.argument(
+                                                                "id",
+                                                                StringArgumentType.word()
+                                                        )
+                                                        .then(
+                                                                Commands.argument(
+                                                                                "pokemon",
+                                                                                StringArgumentType.word()
+                                                                        )
+                                                                        .suggests(
+                                                                                PokemonSuggestionProvider::suggest
+                                                                        )
+                                                                        .then(
+                                                                                Commands.argument(
+                                                                                                "form",
+                                                                                                StringArgumentType.word()
+                                                                                        )
+                                                                                        .suggests(
+                                                                                                (context, builder) ->
+                                                                                                        SharedSuggestionProvider.suggest(
+                                                                                                                MegaShowdownCompat.getMegaForms(),
+                                                                                                                builder
+                                                                                                        )
+                                                                                        )
+                                                                                        .executes(context ->
+                                                                                                createMegaNpc(
+                                                                                                        context.getSource(),
+                                                                                                        StringArgumentType.getString(
+                                                                                                                context,
+                                                                                                                "id"
+                                                                                                        ),
+                                                                                                        StringArgumentType.getString(
+                                                                                                                context,
+                                                                                                                "pokemon"
+                                                                                                        ),
+                                                                                                        StringArgumentType.getString(
+                                                                                                                context,
+                                                                                                                "form"
+                                                                                                        ),
+                                                                                                        false
+                                                                                                )
+                                                                                        )
+                                                                                        .then(
+                                                                                                Commands.literal("shiny")
+                                                                                                        .executes(context ->
+                                                                                                                createMegaNpc(
+                                                                                                                        context.getSource(),
+                                                                                                                        StringArgumentType.getString(
+                                                                                                                                context,
+                                                                                                                                "id"
+                                                                                                                        ),
+                                                                                                                        StringArgumentType.getString(
+                                                                                                                                context,
+                                                                                                                                "pokemon"
+                                                                                                                        ),
+                                                                                                                        StringArgumentType.getString(
+                                                                                                                                context,
+                                                                                                                                "form"
+                                                                                                                        ),
+                                                                                                                        true
+                                                                                                                )
+                                                                                                        )
+                                                                                        )
                                                                         )
                                                         )
                                         )
@@ -290,6 +369,63 @@ public final class CobbleNpcCommand {
             );
 
             exception.printStackTrace();
+            return 0;
+        }
+    }
+
+    private static int createMegaNpc(
+            CommandSourceStack source,
+            String npcId,
+            String pokemon,
+            String megaForm,
+            boolean shiny
+    ) {
+        if (!MegaShowdownCompat.isLoaded()) {
+            source.sendFailure(
+                    NpcMessages.error(
+                            "Mega Showdown no está instalado. "
+                                    + "El comando /cobblenpc mega "
+                                    + "solo está disponible con ese mod."
+                    )
+            );
+
+            return 0;
+        }
+
+        try {
+            String properties =
+                    MegaShowdownCompat.buildPokemonProperties(
+                            pokemon,
+                            megaForm,
+                            shiny
+                    );
+
+            int result =
+                    createNpc(
+                            source,
+                            npcId,
+                            properties
+                    );
+
+            if (result > 0) {
+                source.sendSuccess(
+                        () -> NpcMessages.info(
+                                "Mega Showdown | Forma: "
+                                        + megaForm
+                                        + (shiny ? " | Shiny" : "")
+                        ),
+                        false
+                );
+            }
+
+            return result;
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(
+                    NpcMessages.error(
+                            exception.getMessage()
+                    )
+            );
+
             return 0;
         }
     }
